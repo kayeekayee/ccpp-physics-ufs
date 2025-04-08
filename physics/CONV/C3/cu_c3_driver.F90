@@ -230,6 +230,7 @@ contains
    real(kind=kind_phys), dimension (im)    :: z1,psur,cuten,cutens,cutenm
    real(kind=kind_phys), dimension (im)    :: umean,vmean,pmean
    real(kind=kind_phys), dimension (im)    :: xmbs,xmbs2,xmb,xmbm,xmb_dumm,mconv
+   real(kind=kind_phys), dimension (im)    :: fm_thresh,f_thresh,mc_thresh
 !$acc declare create(qcheck,zo,t2d,q2d,po,p2d,rhoi,clw_ten,tn,qo,tshall,qshall,dz8w,omeg, &
 !$acc                z1,psur,cuten,cutens,cutenm,umean,vmean,pmean,           &
 !$acc                xmbs,xmbs2,xmb,xmbm,xmb_dumm,mconv)
@@ -339,6 +340,10 @@ contains
      rand_mom(:)    = 0.
      rand_vmas(:)   = 0.
      rand_clos(:,:) = 0.
+
+     f_thresh(:)=.9
+     fm_thresh(:)=.0
+     mc_thresh(:)=0.
 !$acc end kernels
 !
      its=1
@@ -655,8 +660,9 @@ contains
       enddo
      enddo
      do i = its,itf
-      if(mconv(i).lt.0.)mconv(i)=0.
+      if(mconv(i).lt.mc_thresh(i))ierr(i)=999
       if((dx(i)<6500.).and.do_mynnedmf.and.(maxMF(i).gt.0.))ierr(i)=555
+      ierrm(i)=max(ierr(i),ierrm(i))
      enddo
 !$acc end kernels
      if (dx(its)<6500.) then
@@ -726,6 +732,7 @@ contains
               ,delp          &
               ,zo            &
               ,forcing       &
+              ,fm_thresh     &
               ,t2d           &
               ,q2d           &
               ,tmfq          &
@@ -820,6 +827,7 @@ contains
               ,delp          &
               ,zo            &
               ,forcing2      &
+              ,f_thresh      &
               ,t2d           &
               ,q2d           &
               ,tmfq          &

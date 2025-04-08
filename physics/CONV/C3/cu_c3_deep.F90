@@ -92,6 +92,7 @@ contains
               ,delp          &  ! air pressure difference between midlayers
               ,zo            &  ! heights above surface
               ,forcing       &  ! only diagnostic
+              ,f_thresh      &
               ,t             &  ! t before forcing
               ,q             &  ! q before forcing
               ,tmf           &  ! instantanious tendency from turbulence
@@ -230,7 +231,7 @@ contains
          sigmaout
      real(kind=kind_phys), dimension (its:)                                         &
         ,intent (in   )                   ::                           &
-        dx,z1,psur,xland
+        dx,z1,psur,xland,f_thresh
 !$acc declare copyin(dx,z1,psur,xland)
      real(kind=kind_phys), dimension (its:)                                         &
         ,intent (inout   )                ::                           &
@@ -595,8 +596,7 @@ contains
 !$acc loop private(radius,frh)
       do i=its,ite
          c1d(i,:)= 0. !c1 ! 0. ! c1 ! max(.003,c1+float(csum(i))*.0001)
-         entr_rate(i)=7.e-5 - min(20.,float(csum(i))) * 3.e-6
-         if(xland1(i) == 0)entr_rate(i)=7.e-5
+         entr_rate(i)=1.e-4 !7.e-5 - min(20.,float(csum(i))) * 3.e-6
          if(dx(i)<dx_thresh) entr_rate(i)=2.e-4
          if(imid.eq.1)entr_rate(i)=3.e-4
          radius=.2/entr_rate(i)
@@ -607,9 +607,9 @@ contains
             entr_rate(i)=.2/radius
          endif
          sig(i)=(1.-frh)**2
-         !frh_out(i) = frh
-         if(forcing(i,7).eq.0.)sig(i)=1.
-         frh_out(i) = frh*sig(i)
+         frh_out(i) = frh
+         !if(forcing(i,7).eq.0.)sig(i)=1.
+         !frh_out(i) = frh*sig(i)
       enddo
 !$acc end kernels
       sig_thresh = (1.-frh_thresh)**2
@@ -1151,8 +1151,8 @@ contains
           !
           !- include glaciation effects on hc,hco	  
           !                    ------ ice content --------     
-          hc (i,k)= hc (i,k)+(1.-p_liq_ice(i,k))*qrco(i,k)*xlf
-          hco(i,k)= hco(i,k)+(1.-p_liq_ice(i,k))*qrco(i,k)*xlf
+          !hc (i,k)= hc (i,k)+(1.-p_liq_ice(i,k))*qrco(i,k)*xlf
+          !hco(i,k)= hco(i,k)+(1.-p_liq_ice(i,k))*qrco(i,k)*xlf
 
           dby(i,k)=hc(i,k)-hes_cup(i,k)
 !---meltglac-------------------------------------------------
@@ -1389,6 +1389,8 @@ contains
                ierrc(i)="cloud work function zero"
 #endif
            endif
+           trash=(aa1(i)-aa0(i))/dtime/frh_out(i)
+           if(trash.lt. f_thresh(i))ierr(i)=2242
       enddo
 !$acc end kernels
 
@@ -1753,8 +1755,7 @@ contains
                         
 !---meltglac-------------------------------------------------
 
-           dellah(i,k) = dellah(i,k) + xlf*((1.-p_liq_ice(i,k))*0.5*(qrco(i,k+1)+qrco(i,k)) &
-                                     - melting(i,k))*g/dp
+           dellah(i,k) = dellah(i,k) - xlf*melting(i,k)*g/dp
 
 !---meltglac-------------------------------------------------
 
@@ -1899,7 +1900,7 @@ contains
           !
           !- include glaciation effects on xhc  
           !                          ------ ice content --------     
-          xhc (i,k)= xhc (i,k)+ xlf*(1.-p_liq_ice(i,k))*qrco(i,k)
+          !xhc (i,k)= xhc (i,k)+ xlf*(1.-p_liq_ice(i,k))*qrco(i,k)
 !---meltglac-------------------------------------------------
 
          xdby(i,k)=xhc(i,k)-xhes_cup(i,k)
